@@ -68,7 +68,6 @@ function setTheme(t) {
   save('theme', t);
   initTheme();
 }
-window.setTheme = setTheme;
 
 async function loadMeta() {
   try {
@@ -633,6 +632,9 @@ async function main() {
 
   $('#reroll').onclick = reroll;
   $('#share').onclick = makePermalink;
+  $('#theme-auto').onclick = () => setTheme('auto');
+  $('#theme-light').onclick = () => setTheme('light');
+  $('#theme-dark').onclick = () => setTheme('dark');
   $('#multi-toggle').onclick = toggleMultiSelect;
   $('#bulk-tag').onclick = bulkTagSelected;
   $('#download-zip').onclick = downloadZip;
