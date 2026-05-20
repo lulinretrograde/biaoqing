@@ -1,6 +1,6 @@
 # biaoqing
 
-self-hosted picker for chinese reaction images. runs anywhere docker runs.
+(self)host(ed/able) picker for chinese reaction images. runs anywhere docker runs.
 
 initial image set seeded from [atanet90/expression-pack](https://github.com/atanet90/expression-pack) (CC0).
 local additions and scraped batches drift it from upstream over time.
