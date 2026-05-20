@@ -52,7 +52,7 @@ tools/sync.sh                  # if upstream gained images
 docker compose up -d --build
 ```
 
-bump `VERSION` in `site/sw.js` when shipping breaking asset changes. forces PWA clients to drop cached shell.
+`deploy.sh` (or `SW_VERSION=$(git rev-parse --short HEAD) docker compose up -d --build`) stamps the service-worker cache version from the git sha, so PWA clients flush cached shell on every deploy.
 
 ## layout
 

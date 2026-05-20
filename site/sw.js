@@ -1,6 +1,6 @@
 'use strict';
 
-const VERSION = 'v5';
+const VERSION = '__SW_VERSION__';
 const SHELL_CACHE = `shell-${VERSION}`;
 const IMG_CACHE = `imgs-${VERSION}`;
 const VENDOR_JSZIP = 'https://cdn.jsdelivr.net/npm/jszip@3.10.1/dist/jszip.min.js';

@@ -1,6 +1,9 @@
 services:
   web:
-    build: .
+    build:
+      context: .
+      args:
+        SW_VERSION: ${SW_VERSION:-dev}
     container_name: biaoqing-web
     restart: unless-stopped
     ports:

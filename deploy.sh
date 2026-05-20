@@ -1,22 +1,19 @@
 #!/usr/bin/env bash
-# Pull latest, bump SW cache version, rebuild.
+# Pull latest, rebuild with auto-stamped SW version.
 set -euo pipefail
 
 ROOT="$(cd "$(dirname "$0")" && pwd)"
 
 git -C "$ROOT" pull
 
-# Bump VERSION in sw.js to force PWA clients to flush cached shell
-TS=$(date +%s)
-sed -i "s/const VERSION = '[^']*'/const VERSION = 'v${TS}'/" "$ROOT/site/sw.js"
-git -C "$ROOT" add "$ROOT/site/sw.js"
-git -C "$ROOT" commit -m "bump sw version ${TS}" --allow-empty
+SW_VERSION="$(git -C "$ROOT" rev-parse --short HEAD)-$(date +%s)"
+export SW_VERSION
 
 docker compose -f "$ROOT/docker-compose.yml" up -d --build
 
 # Optional ntfy notification on success
 if [[ -n "${NTFY_URL:-}" ]]; then
-  curl -s -d "biaoqing deployed" "$NTFY_URL" > /dev/null
+  curl -s -d "biaoqing deployed ${SW_VERSION}" "$NTFY_URL" > /dev/null
 fi
 
-echo "deployed"
+echo "deployed ${SW_VERSION}"
