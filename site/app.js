@@ -57,17 +57,18 @@ function initTheme() {
   if (t === 'dark') document.documentElement.setAttribute('data-theme', 'dark');
   else if (t === 'light') document.documentElement.setAttribute('data-theme', 'light');
   else document.documentElement.removeAttribute('data-theme');
-  const btn = $('#theme-toggle');
-  if (btn) btn.title = `Theme: ${t} (click to cycle)`;
+  ['auto', 'light', 'dark'].forEach(v => {
+    const btn = $(`#theme-${v}`);
+    if (btn) btn.classList.toggle('on', v === t);
+  });
 }
 
-function cycleTheme() {
-  const order = ['auto', 'light', 'dark'];
-  State.theme = order[(order.indexOf(State.theme) + 1) % order.length];
-  save('theme', State.theme);
+function setTheme(t) {
+  State.theme = t;
+  save('theme', t);
   initTheme();
-  showToast(`theme: ${State.theme}`);
 }
+window.setTheme = setTheme;
 
 async function loadMeta() {
   try {
@@ -632,7 +633,6 @@ async function main() {
 
   $('#reroll').onclick = reroll;
   $('#share').onclick = makePermalink;
-  $('#theme-toggle').onclick = cycleTheme;
   $('#multi-toggle').onclick = toggleMultiSelect;
   $('#bulk-tag').onclick = bulkTagSelected;
   $('#download-zip').onclick = downloadZip;

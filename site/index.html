@@ -207,6 +207,8 @@
   details.section label { display: flex; flex-direction: column; gap: 6px; color: var(--text); }
   details.section .setting-row { display: flex; flex-direction: column; gap: 12px; }
   details.section input[type="url"] { width: 100%; max-width: 480px; }
+  .theme-btns { display: flex; gap: 6px; }
+  .theme-btns button { min-width: 52px; }
 
   footer.credit { margin-top: 32px; font-size: 11px; color: var(--muted); text-align: center; }
   footer.credit a { color: var(--muted); text-decoration: underline; text-decoration-color: var(--border); }
@@ -229,7 +231,6 @@
   <input id="count" type="number" min="1" max="200" value="24" title="count">
   <div class="toolbar">
     <button id="reroll" class="primary icon" title="Reroll (space)">⟳</button>
-    <button id="theme-toggle" class="icon" title="Toggle theme">◑</button>
     <button id="multi-toggle" class="icon" title="Multi-select (s)">☑</button>
     <button id="bulk-tag" class="icon" title="Tag selected" hidden>tag</button>
     <button id="download-zip" class="icon" title="Download zip (z)" disabled>↓ zip</button>
@@ -258,6 +259,13 @@
   <summary>settings</summary>
   <div class="body">
     <div class="setting-row">
+      <label>theme
+        <div class="theme-btns">
+          <button id="theme-auto" class="sm" onclick="setTheme('auto')">auto</button>
+          <button id="theme-light" class="sm" onclick="setTheme('light')">light</button>
+          <button id="theme-dark" class="sm" onclick="setTheme('dark')">dark</button>
+        </div>
+      </label>
       <label>
         Discord webhook URL
         <input id="webhook-url" type="url" placeholder="https://discord.com/api/webhooks/...">
