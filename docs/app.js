@@ -145,24 +145,66 @@ async function copyImage(id) {
   }
 }
 
-async function sendToDiscord(id) {
-  const webhookUrl = load('discordWebhook', '');
-  if (!webhookUrl) {
+function getWebhook() {
+  const url = load('discordWebhook', '');
+  if (!url) {
     document.querySelector('details.section').open = true;
     showToast('add Discord webhook URL in settings');
-    return;
+    return null;
   }
+  return url;
+}
+
+async function postDiscordBatch(url, ids) {
+  const form = new FormData();
+  for (let i = 0; i < ids.length; i++) {
+    const blob = await fetch(imgUrl(ids[i]), { mode: 'cors' }).then(r => r.blob());
+    form.append(`files[${i}]`, new File([blob], `${ids[i]}.jpg`, { type: 'image/jpeg' }));
+  }
+  const r = await fetch(url, { method: 'POST', body: form });
+  if (r.status === 429) {
+    const j = await r.json().catch(() => ({}));
+    const wait = Math.max(1, (j.retry_after || 2)) * 1000;
+    await new Promise(res => setTimeout(res, wait));
+    return postDiscordBatch(url, ids);
+  }
+  if (!r.ok) throw new Error(`HTTP ${r.status}`);
+}
+
+async function sendToDiscord(id) {
+  const webhookUrl = getWebhook();
+  if (!webhookUrl) return;
   showToast('sending...', 2000);
   try {
-    const blob = await fetch(imgUrl(id), { mode: 'cors' }).then(r => r.blob());
-    const form = new FormData();
-    form.append('file', new File([blob], `${id}.jpg`, { type: 'image/jpeg' }));
-    const r = await fetch(webhookUrl, { method: 'POST', body: form });
-    if (!r.ok) throw new Error(`HTTP ${r.status}`);
+    await postDiscordBatch(webhookUrl, [id]);
     showToast(`sent #${id} to Discord`);
     recordUsed(id);
   } catch (e) {
     showToast(`failed: ${e.message}`);
+  }
+}
+
+async function sendBulkToDiscord(ids) {
+  const webhookUrl = getWebhook();
+  if (!webhookUrl) return;
+  const total = ids.length;
+  const batchSize = 10;
+  let sent = 0;
+  showToast(`sending ${total} to Discord...`, 4000);
+  try {
+    for (let i = 0; i < total; i += batchSize) {
+      const slice = ids.slice(i, i + batchSize);
+      await postDiscordBatch(webhookUrl, slice);
+      slice.forEach(recordUsed);
+      sent += slice.length;
+      if (i + batchSize < total) {
+        showToast(`sent ${sent}/${total}...`, 2000);
+        await new Promise(res => setTimeout(res, 1200));
+      }
+    }
+    showToast(`sent ${sent} to Discord`);
+  } catch (e) {
+    showToast(`stopped at ${sent}/${total}: ${e.message}`, 3000);
   }
 }
 
@@ -684,9 +726,7 @@ async function main() {
   $('#bulk-tag').onclick = bulkTagSelected;
   $('#download-zip').onclick = downloadZip;
   $('#discord-send').onclick = () => {
-    if (State.selected.size > 0) {
-      [...State.selected].forEach(id => sendToDiscord(id));
-    }
+    if (State.selected.size > 0) sendBulkToDiscord([...State.selected]);
   };
   $('#export-favs').onclick = exportFavZip;
   $('#fav-sort-toggle').onclick = () => {
