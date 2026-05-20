@@ -209,7 +209,7 @@ function renderCard(id, container, opts = {}) {
   const img = document.createElement('img');
   img.loading = 'lazy';
   img.src = imgUrl(id);
-  img.onerror = () => card.classList.add('broken');
+  img.onerror = () => card.remove();
 
   const idTag = document.createElement('span');
   idTag.className = 'id-tag';
