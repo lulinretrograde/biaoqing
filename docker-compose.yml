@@ -1,0 +1,10 @@
+services:
+  web:
+    build: .
+    container_name: biaoqing-web
+    restart: unless-stopped
+    ports:
+      - "8080:80"
+    volumes:
+      - ./site/img:/usr/share/nginx/html/img:ro
+      - ./site/meta.json:/usr/share/nginx/html/meta.json:ro

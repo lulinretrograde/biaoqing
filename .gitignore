@@ -1,0 +1,7 @@
+site/img/
+site/meta.json
+site/.hashes
+*.swp
+.DS_Store
+__pycache__/
+*.pyc

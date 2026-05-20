@@ -1,0 +1,339 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<meta name="theme-color" content="#ffffff">
+<title>biaoqing</title>
+<link rel="manifest" href="manifest.webmanifest">
+<link rel="icon" href="icon.svg" type="image/svg+xml">
+<link rel="apple-touch-icon" href="icon.svg">
+<style>
+  :root {
+    color-scheme: light dark;
+    --bg: #fafafa;
+    --surface: #ffffff;
+    --border: #ececec;
+    --text: #18181b;
+    --muted: #71717a;
+    --accent: #2563eb;
+    --danger: #dc2626;
+    --shadow: 0 1px 2px rgba(0,0,0,0.04), 0 1px 3px rgba(0,0,0,0.06);
+    --shadow-lg: 0 4px 12px rgba(0,0,0,0.08);
+    --radius: 10px;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root {
+      --bg: #0f0f10;
+      --surface: #18181b;
+      --border: #27272a;
+      --text: #fafafa;
+      --muted: #a1a1aa;
+      --shadow: 0 1px 2px rgba(0,0,0,0.3);
+      --shadow-lg: 0 4px 16px rgba(0,0,0,0.5);
+    }
+  }
+  * { box-sizing: border-box; }
+  html, body { margin: 0; padding: 0; background: var(--bg); color: var(--text); }
+  body {
+    font-family: -apple-system, BlinkMacSystemFont, "Inter", "Segoe UI", system-ui, sans-serif;
+    font-size: 14px;
+    line-height: 1.4;
+    -webkit-font-smoothing: antialiased;
+  }
+  .container { max-width: 1100px; margin: 0 auto; padding: 24px 20px 80px; }
+
+  header.bar {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    margin-bottom: 16px;
+    flex-wrap: wrap;
+  }
+  .brand {
+    font-weight: 600;
+    font-size: 15px;
+    letter-spacing: -0.01em;
+    color: var(--text);
+    margin-right: auto;
+  }
+  .brand span { color: var(--muted); font-weight: 400; margin-left: 6px; font-size: 12px; }
+
+  input, button, select {
+    font-family: inherit;
+    font-size: 14px;
+    color: var(--text);
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    padding: 8px 12px;
+    line-height: 1.2;
+  }
+  input { box-shadow: var(--shadow); }
+  input:focus, button:focus { outline: 2px solid var(--accent); outline-offset: -1px; }
+  input::placeholder { color: var(--muted); }
+  button { cursor: pointer; transition: background 0.1s; box-shadow: var(--shadow); }
+  button:hover { background: var(--bg); }
+  button:disabled { opacity: 0.4; cursor: not-allowed; }
+  button.on { background: var(--accent); color: white; border-color: var(--accent); }
+  button.on:hover { background: var(--accent); filter: brightness(1.05); }
+  button.primary { background: var(--accent); color: white; border-color: var(--accent); }
+  button.primary:hover { filter: brightness(1.05); background: var(--accent); }
+  button.icon { padding: 8px 10px; min-width: 36px; }
+
+  #search { flex: 1; min-width: 200px; max-width: 360px; }
+  #count { width: 64px; text-align: center; }
+
+  .toolbar { display: flex; gap: 8px; align-items: center; }
+  .meta-row { display: flex; gap: 12px; align-items: center; color: var(--muted); font-size: 12px; margin-bottom: 16px; }
+  .meta-row .spacer { flex: 1; }
+
+  section.panel {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    margin-bottom: 16px;
+    overflow: hidden;
+  }
+  section.panel > summary, section.panel > .head {
+    padding: 10px 14px;
+    font-size: 13px;
+    font-weight: 500;
+    color: var(--text);
+    cursor: pointer;
+    user-select: none;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+  }
+  section.panel > summary::-webkit-details-marker { display: none; }
+  section.panel > summary::before { content: "▸"; font-size: 10px; color: var(--muted); transition: transform 0.15s; }
+  section.panel[open] > summary::before { transform: rotate(90deg); }
+  section.panel .count { color: var(--muted); font-weight: 400; font-size: 12px; }
+  section.panel > .body { padding: 12px 14px 14px; border-top: 1px solid var(--border); }
+
+  #grid, #favorites {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(140px, 1fr));
+    gap: 10px;
+  }
+  #favorites { grid-template-columns: repeat(auto-fill, minmax(96px, 1fr)); gap: 8px; }
+  .empty { padding: 24px 8px; text-align: center; color: var(--muted); font-size: 13px; }
+
+  .card {
+    position: relative;
+    aspect-ratio: 1;
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    overflow: hidden;
+    cursor: pointer;
+    transition: box-shadow 0.15s, border-color 0.15s, transform 0.05s;
+  }
+  .card:hover { box-shadow: var(--shadow-lg); }
+  .card.broken { display: none; }
+  .card.focus { border-color: var(--accent); box-shadow: 0 0 0 2px rgba(37,99,235,0.2); }
+  .card.selected { border-color: var(--accent); box-shadow: 0 0 0 2px rgba(37,99,235,0.3); }
+  .card.dragging { opacity: 0.4; }
+  .card img { width: 100%; height: 100%; object-fit: contain; display: block; pointer-events: none; padding: 4px; }
+
+  .card .id-tag {
+    position: absolute;
+    top: 6px; left: 6px;
+    background: rgba(255,255,255,0.85);
+    backdrop-filter: blur(4px);
+    color: var(--muted);
+    padding: 1px 6px;
+    border-radius: 4px;
+    font-size: 10px;
+    font-variant-numeric: tabular-nums;
+    opacity: 0;
+    transition: opacity 0.15s;
+  }
+  .card:hover .id-tag { opacity: 1; }
+  @media (prefers-color-scheme: dark) { .card .id-tag { background: rgba(0,0,0,0.65); } }
+
+  .card .star {
+    position: absolute;
+    top: 4px; right: 4px;
+    width: 26px; height: 26px;
+    display: flex; align-items: center; justify-content: center;
+    border-radius: 999px;
+    color: #d4d4d8;
+    font-size: 14px;
+    opacity: 0;
+    cursor: pointer;
+    transition: opacity 0.15s, color 0.15s, background 0.15s;
+  }
+  .card:hover .star, .card .star.active { opacity: 1; }
+  .card .star:hover { background: rgba(0,0,0,0.05); }
+  .card .star.active { color: #eab308; }
+
+  .card .select-box {
+    position: absolute;
+    bottom: 6px; left: 6px;
+    width: 18px; height: 18px;
+    cursor: pointer;
+    accent-color: var(--accent);
+  }
+  .card .tag-pill {
+    position: absolute;
+    bottom: 6px; right: 6px;
+    background: rgba(255,255,255,0.85);
+    backdrop-filter: blur(4px);
+    color: var(--muted);
+    font-size: 10px;
+    padding: 1px 5px;
+    border-radius: 4px;
+    max-width: 70%;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+  @media (prefers-color-scheme: dark) { .card .tag-pill { background: rgba(0,0,0,0.65); } }
+
+  #modal {
+    position: fixed; inset: 0;
+    background: rgba(15,15,17,0.6);
+    backdrop-filter: blur(4px);
+    display: none;
+    align-items: center;
+    justify-content: center;
+    z-index: 50;
+    padding: 24px;
+  }
+  #modal.open { display: flex; flex-direction: column; gap: 16px; }
+  #modal img {
+    max-width: 90vw;
+    max-height: 70vh;
+    object-fit: contain;
+    background: var(--surface);
+    border-radius: var(--radius);
+    box-shadow: var(--shadow-lg);
+  }
+  #modal .modal-close {
+    position: absolute;
+    top: 16px; right: 16px;
+    width: 36px; height: 36px;
+    padding: 0;
+    font-size: 18px;
+    line-height: 1;
+  }
+  #modal .modal-actions { display: flex; gap: 8px; flex-wrap: wrap; justify-content: center; }
+
+  #wheel { position: fixed; inset: 0; display: none; align-items: center; justify-content: center; background: rgba(15,15,17,0.5); backdrop-filter: blur(4px); z-index: 40; }
+  #wheel.open { display: flex; }
+  #wheel .wheel-inner { position: relative; width: 340px; height: 340px; }
+  .wheel-slot {
+    position: absolute;
+    top: 50%; left: 50%;
+    width: 64px; height: 64px;
+    margin: -32px 0 0 -32px;
+    border-radius: 999px;
+    overflow: hidden;
+    cursor: pointer;
+    background: var(--surface);
+    border: 2px solid var(--border);
+    box-shadow: var(--shadow);
+    transition: border-color 0.15s, transform 0.15s;
+  }
+  .wheel-slot:hover { border-color: var(--accent); }
+  .wheel-slot img { width: 100%; height: 100%; object-fit: contain; padding: 4px; pointer-events: none; }
+
+  .toast {
+    position: fixed;
+    bottom: 24px;
+    left: 50%;
+    transform: translateX(-50%) translateY(8px);
+    background: var(--text);
+    color: var(--surface);
+    padding: 10px 16px;
+    border-radius: 8px;
+    opacity: 0;
+    pointer-events: none;
+    transition: opacity 0.2s, transform 0.2s;
+    z-index: 60;
+    font-size: 13px;
+    box-shadow: var(--shadow-lg);
+  }
+  .toast.show { opacity: 1; transform: translateX(-50%) translateY(0); }
+
+  details.shortcuts {
+    margin-top: 24px;
+    font-size: 12px;
+    color: var(--muted);
+  }
+  details.shortcuts summary { cursor: pointer; user-select: none; }
+  details.shortcuts dl { display: grid; grid-template-columns: max-content 1fr; gap: 4px 16px; margin-top: 8px; }
+  details.shortcuts dt { font-family: ui-monospace, "SF Mono", Menlo, monospace; color: var(--text); }
+
+  footer.credit { margin-top: 32px; font-size: 11px; color: var(--muted); text-align: center; }
+  footer.credit a { color: var(--muted); text-decoration: underline; text-decoration-color: var(--border); }
+
+  @media (max-width: 640px) {
+    .container { padding: 16px 12px 80px; }
+    header.bar { gap: 8px; }
+    #search { max-width: none; width: 100%; order: 10; }
+    .brand { font-size: 14px; }
+  }
+</style>
+</head>
+<body>
+<div class="container">
+
+<header class="bar">
+  <div class="brand">biaoqing <span id="status">loading</span></div>
+  <input id="search" placeholder="search: 10-50, recent, favs, local, tag:foo">
+  <input id="count" type="number" min="1" max="200" value="24" title="how many to show">
+  <div class="toolbar">
+    <button id="reroll" class="primary icon" title="Reroll (space)">⟳</button>
+    <button id="multi-toggle" class="icon" title="Multi-select (s)">☑</button>
+    <button id="download-zip" class="icon" title="Download zip (z)" disabled>↓</button>
+    <button id="share" class="icon" title="Copy share link">link</button>
+    <button id="precache" class="icon" title="Pre-cache all for offline">offline</button>
+    <button id="install" class="icon" title="Install as app" hidden>install</button>
+  </div>
+</header>
+
+<div class="meta-row">
+  <span id="multi-status"></span>
+  <span class="spacer"></span>
+</div>
+
+<details class="panel" open>
+  <summary>favorites <span id="fav-count" class="count"></span></summary>
+  <div class="body"><div id="favorites"></div></div>
+</details>
+
+<div id="grid"></div>
+
+<details class="shortcuts">
+  <summary>keyboard shortcuts</summary>
+  <dl>
+    <dt>space</dt><dd>reroll</dd>
+    <dt>j / k</dt><dd>next / previous</dd>
+    <dt>c</dt><dd>copy focused image</dd>
+    <dt>f</dt><dd>toggle favorite</dd>
+    <dt>enter</dt><dd>open modal</dd>
+    <dt>s</dt><dd>multi-select</dd>
+    <dt>z</dt><dd>download zip</dd>
+    <dt>?</dt><dd>reaction wheel</dd>
+    <dt>/</dt><dd>focus search</dd>
+    <dt>esc</dt><dd>close</dd>
+  </dl>
+</details>
+
+<footer class="credit">
+  seed from <a href="https://github.com/atanet90/expression-pack">atanet90/expression-pack</a> (CC0)
+</footer>
+
+</div>
+
+<div id="modal"></div>
+<div id="wheel"><div class="wheel-inner"></div></div>
+<div id="toast" class="toast"></div>
+
+<script src="https://cdn.jsdelivr.net/npm/jszip@3.10.1/dist/jszip.min.js"></script>
+<script src="app.js"></script>
+</body>
+</html>

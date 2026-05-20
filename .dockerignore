@@ -1,0 +1,12 @@
+site/img
+site/meta.json
+site/.hashes
+.git
+.gitignore
+README.md
+CREDITS.md
+tools
+*.swp
+.DS_Store
+__pycache__
+*.pyc
