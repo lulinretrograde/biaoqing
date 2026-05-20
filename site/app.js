@@ -218,7 +218,22 @@ function renderCard(id, container, opts = {}) {
   const star = document.createElement('span');
   star.className = 'star' + (isFav ? ' active' : '');
   star.textContent = isFav ? '★' : '☆';
-  star.onclick = e => { e.stopPropagation(); toggleFav(id); };
+  star.onclick = e => {
+    e.stopPropagation();
+    if (State.multiSelect && State.selected.size > 0) {
+      const allFaved = [...State.selected].every(sid => State.favorites.includes(sid));
+      for (const sid of State.selected) {
+        if (allFaved) State.favorites = State.favorites.filter(x => x !== sid);
+        else if (!State.favorites.includes(sid)) State.favorites.push(sid);
+      }
+      save('favorites', State.favorites);
+      renderFavorites();
+      renderGrid();
+      showToast(allFaved ? `unstarred ${State.selected.size}` : `starred ${State.selected.size}`);
+    } else {
+      toggleFav(id);
+    }
+  };
 
   card.append(img, idTag, star);
 
