@@ -44,6 +44,35 @@ function showToast(msg, ms = 1500) {
   showToast._t = setTimeout(() => toast.classList.remove('show'), ms);
 }
 
+function askPrompt(title, value = '') {
+  return new Promise(resolve => {
+    const dlg = $('#prompt-dialog');
+    const titleEl = dlg.querySelector('.pd-title');
+    const input = dlg.querySelector('.pd-input');
+    const ok = dlg.querySelector('.pd-ok');
+    const cancel = dlg.querySelector('.pd-cancel');
+    titleEl.textContent = title;
+    input.value = value;
+    dlg.classList.add('open');
+    setTimeout(() => input.focus(), 10);
+    const cleanup = () => {
+      dlg.classList.remove('open');
+      ok.onclick = cancel.onclick = null;
+      input.onkeydown = null;
+      dlg.onclick = null;
+    };
+    const confirm = () => { const v = input.value; cleanup(); resolve(v); };
+    const dismiss = () => { cleanup(); resolve(null); };
+    ok.onclick = confirm;
+    cancel.onclick = dismiss;
+    input.onkeydown = e => {
+      if (e.key === 'Enter') { e.preventDefault(); confirm(); }
+      else if (e.key === 'Escape') { e.preventDefault(); dismiss(); }
+    };
+    dlg.onclick = e => { if (e.target === dlg) dismiss(); };
+  });
+}
+
 function shuffle(arr) {
   const a = arr.slice();
   for (let i = a.length - 1; i > 0; i--) {
@@ -168,11 +197,11 @@ function setNote(id, text) {
   save('notes', State.notes);
 }
 
-function bulkTagSelected() {
+async function bulkTagSelected() {
   if (State.selected.size === 0) return;
   const ids = [...State.selected];
   const existing = [...new Set(ids.flatMap(id => State.tags[id] || []))].join(', ');
-  const next = prompt(`Tags for ${ids.length} images (comma separated, replaces existing):`, existing);
+  const next = await askPrompt(`Tags for ${ids.length} images (comma separated, replaces existing):`, existing);
   if (next === null) return;
   const tags = next.split(',').map(s => s.trim().toLowerCase()).filter(Boolean);
   ids.forEach(id => setTags(id, tags));
@@ -393,9 +422,9 @@ function openModal(id) {
     mkBtn('copy img', () => copyImage(id)),
     mkBtn('copy url', async () => { await navigator.clipboard.writeText(imgUrl(id).startsWith('http') ? imgUrl(id) : location.origin + '/' + imgUrl(id)); showToast('URL copied'); }),
     mkBtn(State.favorites.includes(id) ? 'unstar' : 'star', () => { toggleFav(id); openModal(id); }),
-    mkBtn('tags', () => {
+    mkBtn('tags', async () => {
       const cur = (State.tags[id] || []).join(', ');
-      const next = prompt(`Tags for #${id} (comma separated):`, cur);
+      const next = await askPrompt(`Tags for #${id} (comma separated):`, cur);
       if (next === null) return;
       setTags(id, next.split(',').map(s => s.trim().toLowerCase()).filter(Boolean));
       showToast('tags saved');
