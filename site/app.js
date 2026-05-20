@@ -99,17 +99,29 @@ function setTheme(t) {
 }
 
 async function loadMeta() {
+  statusEl.innerHTML = 'loading';
   try {
     const r = await fetch(META_URL, { cache: 'no-store' });
+    if (!r.ok) throw new Error(`HTTP ${r.status}`);
     const data = await r.json();
     if (!Array.isArray(data.ids) || data.ids.length === 0) throw new Error('empty manifest');
     State.ids = data.ids;
     statusEl.textContent = `${State.ids.length} available`;
+    save('lastIds', State.ids);
+    return true;
   } catch (e) {
-    statusEl.textContent = 'meta load failed';
-    State.ids = load('lastIds', []);
+    const cached = load('lastIds', []);
+    State.ids = cached;
+    const suffix = cached.length ? ` (using ${cached.length} cached)` : '';
+    statusEl.innerHTML = '';
+    statusEl.append(`meta load failed${suffix} `);
+    const retry = document.createElement('button');
+    retry.className = 'sm';
+    retry.textContent = 'retry';
+    retry.onclick = async () => { if (await loadMeta()) { reroll(); } };
+    statusEl.append(retry);
+    return false;
   }
-  if (State.ids.length) save('lastIds', State.ids);
 }
 
 function pickRandom(n) {
