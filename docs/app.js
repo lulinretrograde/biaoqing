@@ -1,6 +1,7 @@
 'use strict';
 
-const META_URL = 'meta.json';
+const REMOTE_BASE = 'https://atanet90.github.io/expression-pack';
+const META_URL = `${REMOTE_BASE}/meta`;
 const COOLDOWN = 60;
 
 const $ = sel => document.querySelector(sel);
@@ -33,7 +34,7 @@ const wheel = $('#wheel');
 const wheelInner = wheel.querySelector('.wheel-inner');
 const toast = $('#toast');
 
-function imgUrl(id) { return `img/${id}.jpg`; }
+function imgUrl(id) { return `${REMOTE_BASE}/img/${id}.jpg`; }
 function getCount() { return Math.min(parseInt($('#count').value, 10) || 24, 200); }
 
 function showToast(msg, ms = 1500) {
@@ -72,9 +73,9 @@ function setTheme(t) {
 async function loadMeta() {
   try {
     const r = await fetch(META_URL, { cache: 'no-store' });
-    const data = await r.json();
-    if (!Array.isArray(data.ids) || data.ids.length === 0) throw new Error('empty manifest');
-    State.ids = data.ids;
+    const total = parseInt((await r.text()).trim(), 10);
+    if (!Number.isFinite(total) || total < 1) throw new Error('bad meta');
+    State.ids = Array.from({ length: total }, (_, i) => i);
     statusEl.textContent = `${State.ids.length} available`;
   } catch (e) {
     statusEl.textContent = 'meta load failed';
@@ -96,7 +97,7 @@ function pickRange(lo, hi, n) {
 
 async function copyImage(id) {
   try {
-    const blob = await fetch(imgUrl(id)).then(r => r.blob());
+    const blob = await fetch(imgUrl(id), { mode: 'cors' }).then(r => r.blob());
     const bmp = await createImageBitmap(blob);
     const canvas = document.createElement('canvas');
     canvas.width = bmp.width; canvas.height = bmp.height;
@@ -124,7 +125,7 @@ async function sendToDiscord(id) {
   }
   showToast('sending...', 2000);
   try {
-    const blob = await fetch(imgUrl(id)).then(r => r.blob());
+    const blob = await fetch(imgUrl(id), { mode: 'cors' }).then(r => r.blob());
     const form = new FormData();
     form.append('file', new File([blob], `${id}.jpg`, { type: 'image/jpeg' }));
     const r = await fetch(webhookUrl, { method: 'POST', body: form });
@@ -187,7 +188,7 @@ async function exportFavZip() {
   const zip = new JSZip();
   let ok = 0;
   for (const id of State.favorites) {
-    try { const blob = await fetch(imgUrl(id)).then(r => r.blob()); zip.file(`${id}.jpg`, blob); ok++; } catch {}
+    try { const blob = await fetch(imgUrl(id), { mode: 'cors' }).then(r => r.blob()); zip.file(`${id}.jpg`, blob); ok++; } catch {}
   }
   const out = await zip.generateAsync({ type: 'blob' });
   const a = document.createElement('a');
@@ -462,7 +463,7 @@ async function downloadZip() {
   const zip = new JSZip();
   let ok = 0;
   for (const id of State.selected) {
-    try { const blob = await fetch(imgUrl(id)).then(r => r.blob()); zip.file(`${id}.jpg`, blob); ok++; } catch {}
+    try { const blob = await fetch(imgUrl(id), { mode: 'cors' }).then(r => r.blob()); zip.file(`${id}.jpg`, blob); ok++; } catch {}
   }
   const out = await zip.generateAsync({ type: 'blob' });
   const a = document.createElement('a');
