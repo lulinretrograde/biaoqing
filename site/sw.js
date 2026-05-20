@@ -3,7 +3,6 @@
 const VERSION = '__SW_VERSION__';
 const SHELL_CACHE = `shell-${VERSION}`;
 const IMG_CACHE = `imgs-${VERSION}`;
-const VENDOR_JSZIP = 'https://cdn.jsdelivr.net/npm/jszip@3.10.1/dist/jszip.min.js';
 
 const SHELL = [
   './',
@@ -11,13 +10,13 @@ const SHELL = [
   './app.js',
   './manifest.webmanifest',
   './icon.svg',
+  './vendor/jszip.min.js',
 ];
 
 self.addEventListener('install', e => {
   e.waitUntil((async () => {
     const c = await caches.open(SHELL_CACHE);
     await c.addAll(SHELL);
-    try { await c.add(VENDOR_JSZIP); } catch {}
     self.skipWaiting();
   })());
 });
@@ -41,9 +40,9 @@ self.addEventListener('fetch', e => {
   const req = e.request;
   const url = req.url;
 
-  if (isImage(url) || url === VENDOR_JSZIP) {
+  if (isImage(url)) {
     e.respondWith((async () => {
-      const c = await caches.open(isImage(url) ? IMG_CACHE : SHELL_CACHE);
+      const c = await caches.open(IMG_CACHE);
       const hit = await c.match(req);
       if (hit) return hit;
       try {
