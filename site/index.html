@@ -204,6 +204,13 @@
   .toast { position: fixed; bottom: 24px; left: 50%; transform: translateX(-50%) translateY(8px); background: var(--text); color: var(--surface); padding: 10px 16px; border-radius: 8px; opacity: 0; pointer-events: none; transition: opacity 0.2s, transform 0.2s; z-index: 60; font-size: 13px; box-shadow: var(--shadow-lg); }
   .toast.show { opacity: 1; transform: translateX(-50%) translateY(0); }
 
+  #prompt-dialog { position: fixed; inset: 0; background: rgba(15,15,17,0.6); backdrop-filter: blur(4px); display: none; align-items: center; justify-content: center; z-index: 70; padding: 24px; }
+  #prompt-dialog.open { display: flex; }
+  #prompt-dialog .pd-box { background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius); box-shadow: var(--shadow-lg); padding: 16px; width: 420px; max-width: 100%; display: flex; flex-direction: column; gap: 10px; }
+  #prompt-dialog .pd-title { font-size: 14px; font-weight: 500; }
+  #prompt-dialog .pd-input { width: 100%; }
+  #prompt-dialog .pd-actions { display: flex; gap: 8px; justify-content: flex-end; }
+
   details.section { margin-top: 16px; font-size: 13px; color: var(--muted); background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius); overflow: hidden; }
   details.section > summary { padding: 10px 14px; cursor: pointer; user-select: none; font-weight: 500; list-style: none; display: flex; align-items: center; gap: 8px; }
   details.section > summary::-webkit-details-marker { display: none; }
@@ -341,6 +348,16 @@
 <div id="modal"></div>
 <div id="wheel"><div class="wheel-inner"></div></div>
 <div id="toast" class="toast"></div>
+<div id="prompt-dialog">
+  <div class="pd-box">
+    <div class="pd-title"></div>
+    <input class="pd-input" type="text">
+    <div class="pd-actions">
+      <button class="pd-cancel sm">cancel</button>
+      <button class="pd-ok sm primary">ok</button>
+    </div>
+  </div>
+</div>
 
 <script src="https://cdn.jsdelivr.net/npm/jszip@3.10.1/dist/jszip.min.js"></script>
 <script src="app.js"></script>
