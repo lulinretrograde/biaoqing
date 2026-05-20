@@ -207,6 +207,7 @@
   details.section label { display: flex; flex-direction: column; gap: 6px; color: var(--text); }
   details.section .setting-row { display: flex; flex-direction: column; gap: 12px; }
   details.section input[type="url"] { width: 100%; max-width: 480px; }
+  .theme-row { display: flex; align-items: center; gap: 12px; color: var(--text); }
   .theme-btns { display: flex; gap: 6px; }
   .theme-btns button { min-width: 52px; }
 
@@ -259,13 +260,14 @@
   <summary>settings</summary>
   <div class="body">
     <div class="setting-row">
-      <label>theme
+      <div class="theme-row">
+        <span>theme</span>
         <div class="theme-btns">
-          <button id="theme-auto" class="sm" onclick="setTheme('auto')">auto</button>
-          <button id="theme-light" class="sm" onclick="setTheme('light')">light</button>
-          <button id="theme-dark" class="sm" onclick="setTheme('dark')">dark</button>
+          <button id="theme-auto" class="sm">auto</button>
+          <button id="theme-light" class="sm">light</button>
+          <button id="theme-dark" class="sm">dark</button>
         </div>
-      </label>
+      </div>
       <label>
         Discord webhook URL
         <input id="webhook-url" type="url" placeholder="https://discord.com/api/webhooks/...">
