@@ -107,7 +107,7 @@ async function copyImage(id) {
     recordUsed(id);
   } catch (e) {
     try {
-      await navigator.clipboard.writeText(location.origin + '/' + imgUrl(id));
+      await navigator.clipboard.writeText(imgUrl(id).startsWith('http') ? imgUrl(id) : location.origin + '/' + imgUrl(id));
       showToast('URL copied (image copy needs HTTPS)');
     } catch {
       showToast('copy failed');
@@ -390,7 +390,7 @@ function openModal(id) {
 
   actions.append(
     mkBtn('copy img', () => copyImage(id)),
-    mkBtn('copy url', async () => { await navigator.clipboard.writeText(location.origin + '/' + imgUrl(id)); showToast('URL copied'); }),
+    mkBtn('copy url', async () => { await navigator.clipboard.writeText(imgUrl(id).startsWith('http') ? imgUrl(id) : location.origin + '/' + imgUrl(id)); showToast('URL copied'); }),
     mkBtn(State.favorites.includes(id) ? 'unstar' : 'star', () => { toggleFav(id); openModal(id); }),
     mkBtn('tags', () => {
       const cur = (State.tags[id] || []).join(', ');
