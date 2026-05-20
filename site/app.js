@@ -211,10 +211,49 @@ function renderFavorites() {
   favGrid.innerHTML = '';
   $('#fav-count').textContent = State.favorites.length ? `(${State.favorites.length})` : '';
   if (State.favorites.length === 0) {
-    favGrid.innerHTML = '<div class="empty">no favorites yet — click ☆ on any image</div>';
+    favGrid.innerHTML = '<div class="empty">no favorites yet. click ☆ on any image</div>';
     return;
   }
   State.favorites.forEach(id => renderCard(id, favGrid, { draggable: true }));
+}
+
+let _ocrWorker = null;
+async function getOcrWorker() {
+  if (_ocrWorker) return _ocrWorker;
+  if (!window.Tesseract) {
+    await new Promise((res, rej) => {
+      const s = document.createElement('script');
+      s.src = 'https://cdn.jsdelivr.net/npm/tesseract.js@5/dist/tesseract.min.js';
+      s.onload = res; s.onerror = rej;
+      document.head.appendChild(s);
+    });
+  }
+  _ocrWorker = await Tesseract.createWorker('chi_sim', 1, {
+    workerPath: 'https://cdn.jsdelivr.net/npm/tesseract.js@5/dist/worker.min.js',
+    corePath: 'https://cdn.jsdelivr.net/npm/tesseract.js-core@5/tesseract-core.wasm.js',
+    langPath: 'https://tessdata.projectnaptha.com/4.0.0',
+  });
+  return _ocrWorker;
+}
+
+async function translateImage(imgEl, resultEl) {
+  resultEl.textContent = 'loading OCR model (first time: ~40mb)…';
+  try {
+    const worker = await getOcrWorker();
+    resultEl.textContent = 'reading text…';
+    const { data: { text } } = await worker.recognize(imgEl);
+    const cleaned = text.replace(/\s+/g, ' ').trim();
+    if (!cleaned) { resultEl.textContent = 'no text detected'; return; }
+    resultEl.textContent = 'translating…';
+    const r = await fetch(`https://api.mymemory.translated.net/get?q=${encodeURIComponent(cleaned)}&langpair=zh|en`);
+    const j = await r.json();
+    const trans = j?.responseData?.translatedText;
+    resultEl.innerHTML = trans
+      ? `<strong>${trans}</strong><br><span style="opacity:.5;font-size:11px">${cleaned}</span>`
+      : cleaned;
+  } catch (e) {
+    resultEl.textContent = `failed: ${e.message}`;
+  }
 }
 
 function openModal(id) {
@@ -231,7 +270,16 @@ function openModal(id) {
   const actions = document.createElement('div');
   actions.className = 'modal-actions';
 
+  const transResult = document.createElement('div');
+  transResult.className = 'trans-result';
+
   const mkBtn = (label, fn) => { const b = document.createElement('button'); b.textContent = label; b.onclick = fn; return b; };
+
+  const transBtn = mkBtn('translate', async () => {
+    transBtn.disabled = true;
+    await translateImage(img, transResult);
+    transBtn.disabled = false;
+  });
 
   actions.append(
     mkBtn('copy img', () => copyImage(id)),
@@ -245,10 +293,11 @@ function openModal(id) {
       showToast('tags saved');
       renderGrid(); renderFavorites();
     }),
+    transBtn,
     mkBtn('open', () => window.open(imgUrl(id), '_blank')),
   );
 
-  modal.append(close, img, actions);
+  modal.append(close, img, actions, transResult);
 }
 function closeModal() { modal.classList.remove('open'); }
 
@@ -421,7 +470,7 @@ async function registerSW() {
 
 async function precacheAll() {
   const sw = navigator.serviceWorker?.controller;
-  if (!sw) { showToast('SW not active — reload page'); return; }
+  if (!sw) { showToast('SW not active, reload page'); return; }
   const urls = State.ids.map(id => imgUrl(id));
   sw.postMessage({ type: 'precache', urls });
   showToast(`pre-caching ${urls.length} images…`, 3000);
