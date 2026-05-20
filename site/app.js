@@ -408,21 +408,21 @@ async function getOcrWorker() {
   if (!window.Tesseract) {
     await new Promise((res, rej) => {
       const s = document.createElement('script');
-      s.src = 'https://cdn.jsdelivr.net/npm/tesseract.js@5/dist/tesseract.min.js';
+      s.src = 'vendor/tesseract.min.js';
       s.onload = res; s.onerror = rej;
       document.head.appendChild(s);
     });
   }
   _ocrWorker = await Tesseract.createWorker('chi_sim', 1, {
-    workerPath: 'https://cdn.jsdelivr.net/npm/tesseract.js@5/dist/worker.min.js',
-    corePath: 'https://cdn.jsdelivr.net/npm/tesseract.js-core@5/tesseract-core.wasm.js',
-    langPath: 'https://tessdata.projectnaptha.com/4.0.0',
+    workerPath: 'vendor/worker.min.js',
+    corePath: 'vendor/tesseract-core.wasm.js',
+    langPath: 'vendor',
   });
   return _ocrWorker;
 }
 
 async function translateImage(imgEl, resultEl) {
-  resultEl.textContent = 'loading OCR model (first time: ~40mb)...';
+  resultEl.textContent = 'loading OCR model...';
   try {
     const worker = await getOcrWorker();
     resultEl.textContent = 'reading text...';
