@@ -14,10 +14,14 @@ const State = {
   current: [],
   favorites: load('favorites', []),
   tags: load('tags', {}),
+  notes: load('notes', {}),
   recent: load('recent', []),
+  copyCount: load('copyCount', {}),
   selected: new Set(),
   multiSelect: false,
+  favSortByUse: false,
   focusIdx: 0,
+  theme: load('theme', 'auto'),
   installPrompt: null,
 };
 
@@ -46,6 +50,23 @@ function shuffle(arr) {
     [a[i], a[j]] = [a[j], a[i]];
   }
   return a;
+}
+
+function initTheme() {
+  const t = State.theme;
+  if (t === 'dark') document.documentElement.setAttribute('data-theme', 'dark');
+  else if (t === 'light') document.documentElement.setAttribute('data-theme', 'light');
+  else document.documentElement.removeAttribute('data-theme');
+  const btn = $('#theme-toggle');
+  if (btn) btn.title = `Theme: ${t} (click to cycle)`;
+}
+
+function cycleTheme() {
+  const order = ['auto', 'light', 'dark'];
+  State.theme = order[(order.indexOf(State.theme) + 1) % order.length];
+  save('theme', State.theme);
+  initTheme();
+  showToast(`theme: ${State.theme}`);
 }
 
 async function loadMeta() {
@@ -94,9 +115,32 @@ async function copyImage(id) {
   }
 }
 
+async function sendToDiscord(id) {
+  const webhookUrl = load('discordWebhook', '');
+  if (!webhookUrl) {
+    document.querySelector('details.section').open = true;
+    showToast('add Discord webhook URL in settings');
+    return;
+  }
+  showToast('sending...', 2000);
+  try {
+    const blob = await fetch(imgUrl(id)).then(r => r.blob());
+    const form = new FormData();
+    form.append('file', new File([blob], `${id}.jpg`, { type: 'image/jpeg' }));
+    const r = await fetch(webhookUrl, { method: 'POST', body: form });
+    if (!r.ok) throw new Error(`HTTP ${r.status}`);
+    showToast(`sent #${id} to Discord`);
+    recordUsed(id);
+  } catch (e) {
+    showToast(`failed: ${e.message}`);
+  }
+}
+
 function recordUsed(id) {
   State.recent = [id, ...State.recent.filter(x => x !== id)].slice(0, COOLDOWN);
   save('recent', State.recent);
+  State.copyCount[id] = (State.copyCount[id] || 0) + 1;
+  save('copyCount', State.copyCount);
 }
 
 function toggleFav(id) {
@@ -116,6 +160,44 @@ function setTags(id, tags) {
   save('tags', State.tags);
 }
 
+function getNote(id) { return State.notes[id] || ''; }
+function setNote(id, text) {
+  if (!text.trim()) delete State.notes[id];
+  else State.notes[id] = text.trim();
+  save('notes', State.notes);
+}
+
+function bulkTagSelected() {
+  if (State.selected.size === 0) return;
+  const ids = [...State.selected];
+  const existing = [...new Set(ids.flatMap(id => State.tags[id] || []))].join(', ');
+  const next = prompt(`Tags for ${ids.length} images (comma separated, replaces existing):`, existing);
+  if (next === null) return;
+  const tags = next.split(',').map(s => s.trim().toLowerCase()).filter(Boolean);
+  ids.forEach(id => setTags(id, tags));
+  showToast(`tagged ${ids.length} images`);
+  renderGrid();
+  renderFavorites();
+}
+
+async function exportFavZip() {
+  if (State.favorites.length === 0) { showToast('no favorites'); return; }
+  if (typeof JSZip === 'undefined') { showToast('zip lib not loaded'); return; }
+  showToast(`packaging ${State.favorites.length} favorites...`, 4000);
+  const zip = new JSZip();
+  let ok = 0;
+  for (const id of State.favorites) {
+    try { const blob = await fetch(imgUrl(id)).then(r => r.blob()); zip.file(`${id}.jpg`, blob); ok++; } catch {}
+  }
+  const out = await zip.generateAsync({ type: 'blob' });
+  const a = document.createElement('a');
+  a.href = URL.createObjectURL(out);
+  a.download = `biaoqing-favs-${Date.now()}.zip`;
+  a.click();
+  URL.revokeObjectURL(a.href);
+  showToast(`downloaded ${ok} favorites`);
+}
+
 function renderCard(id, container, opts = {}) {
   const card = document.createElement('div');
   card.className = 'card';
@@ -132,8 +214,8 @@ function renderCard(id, container, opts = {}) {
   idTag.className = 'id-tag';
   idTag.textContent = '#' + id;
 
-  const star = document.createElement('span');
   const isFav = State.favorites.includes(id);
+  const star = document.createElement('span');
   star.className = 'star' + (isFav ? ' active' : '');
   star.textContent = isFav ? '★' : '☆';
   star.onclick = e => { e.stopPropagation(); toggleFav(id); };
@@ -214,7 +296,12 @@ function renderFavorites() {
     favGrid.innerHTML = '<div class="empty">no favorites yet. click ☆ on any image</div>';
     return;
   }
-  State.favorites.forEach(id => renderCard(id, favGrid, { draggable: true }));
+  const sorted = State.favSortByUse
+    ? [...State.favorites].sort((a, b) => (State.copyCount[b] || 0) - (State.copyCount[a] || 0))
+    : State.favorites;
+  sorted.forEach(id => renderCard(id, favGrid, { draggable: !State.favSortByUse }));
+  const btn = $('#fav-sort-toggle');
+  if (btn) btn.classList.toggle('on', State.favSortByUse);
 }
 
 let _ocrWorker = null;
@@ -237,14 +324,14 @@ async function getOcrWorker() {
 }
 
 async function translateImage(imgEl, resultEl) {
-  resultEl.textContent = 'loading OCR model (first time: ~40mb)…';
+  resultEl.textContent = 'loading OCR model (first time: ~40mb)...';
   try {
     const worker = await getOcrWorker();
-    resultEl.textContent = 'reading text…';
+    resultEl.textContent = 'reading text...';
     const { data: { text } } = await worker.recognize(imgEl);
     const cleaned = text.replace(/\s+/g, ' ').trim();
     if (!cleaned) { resultEl.textContent = 'no text detected'; return; }
-    resultEl.textContent = 'translating…';
+    resultEl.textContent = 'translating...';
     const r = await fetch(`https://api.mymemory.translated.net/get?q=${encodeURIComponent(cleaned)}&langpair=zh|en`);
     const j = await r.json();
     const trans = j?.responseData?.translatedText;
@@ -259,8 +346,13 @@ async function translateImage(imgEl, resultEl) {
 function openModal(id) {
   modal.classList.add('open');
   modal.innerHTML = '';
+
   const img = document.createElement('img');
   img.src = imgUrl(id);
+
+  const dimsEl = document.createElement('span');
+  dimsEl.className = 'img-dims';
+  img.onload = () => { dimsEl.textContent = `${img.naturalWidth} x ${img.naturalHeight}`; };
 
   const close = document.createElement('button');
   close.textContent = '×';
@@ -293,11 +385,18 @@ function openModal(id) {
       showToast('tags saved');
       renderGrid(); renderFavorites();
     }),
+    mkBtn('discord', () => sendToDiscord(id)),
     transBtn,
     mkBtn('open', () => window.open(imgUrl(id), '_blank')),
   );
 
-  modal.append(close, img, actions, transResult);
+  const noteArea = document.createElement('textarea');
+  noteArea.className = 'note-area';
+  noteArea.placeholder = 'notes...';
+  noteArea.value = getNote(id);
+  noteArea.addEventListener('change', () => setNote(id, noteArea.value));
+
+  modal.append(close, img, dimsEl, actions, noteArea, transResult);
 }
 function closeModal() { modal.classList.remove('open'); }
 
@@ -321,8 +420,14 @@ function applySearch(query) {
       .filter(([, tags]) => tags.includes(t))
       .map(([id]) => +id).slice(0, n);
     if (State.current.length === 0) showToast(`no images tagged "${t}"`);
+  } else if (query.startsWith('note:')) {
+    const t = query.slice(5).trim();
+    State.current = Object.entries(State.notes)
+      .filter(([, note]) => note.toLowerCase().includes(t))
+      .map(([id]) => +id).slice(0, n);
+    if (State.current.length === 0) showToast(`no images with note matching "${t}"`);
   } else {
-    showToast('try: 10-50 | recent | favs | local | tag:name');
+    showToast('try: 10-50 | recent | favs | local | tag:name | note:text');
     return;
   }
   State.focusIdx = 0;
@@ -353,15 +458,11 @@ function loadFromHash() {
 async function downloadZip() {
   if (State.selected.size === 0) { showToast('select images first'); return; }
   if (typeof JSZip === 'undefined') { showToast('zip lib not loaded'); return; }
-  showToast(`packaging ${State.selected.size} files…`, 4000);
+  showToast(`packaging ${State.selected.size} files...`, 4000);
   const zip = new JSZip();
   let ok = 0;
   for (const id of State.selected) {
-    try {
-      const blob = await fetch(imgUrl(id)).then(r => r.blob());
-      zip.file(`${id}.jpg`, blob);
-      ok++;
-    } catch {}
+    try { const blob = await fetch(imgUrl(id)).then(r => r.blob()); zip.file(`${id}.jpg`, blob); ok++; } catch {}
   }
   const out = await zip.generateAsync({ type: 'blob' });
   const a = document.createElement('a');
@@ -373,8 +474,11 @@ async function downloadZip() {
 }
 
 function updateMultiUI() {
-  $('#multi-status').textContent = State.multiSelect ? `${State.selected.size} selected` : '';
-  $('#download-zip').disabled = State.selected.size === 0;
+  const n = State.selected.size;
+  $('#multi-status').textContent = State.multiSelect ? `${n} selected` : '';
+  $('#download-zip').disabled = n === 0;
+  $('#discord-send').disabled = n === 0;
+  $('#bulk-tag').hidden = !State.multiSelect;
 }
 
 function toggleMultiSelect() {
@@ -386,6 +490,22 @@ function toggleMultiSelect() {
   updateMultiUI();
 }
 
+function initSwipe() {
+  let sx = 0, sy = 0;
+  grid.addEventListener('touchstart', e => { sx = e.touches[0].clientX; sy = e.touches[0].clientY; }, { passive: true });
+  grid.addEventListener('touchend', e => {
+    const dx = e.changedTouches[0].clientX - sx;
+    const dy = e.changedTouches[0].clientY - sy;
+    if (Math.abs(dx) < 30 && Math.abs(dy) < 30) return;
+    if (Math.abs(dx) > Math.abs(dy)) {
+      dx > 0 ? moveFocus(-1) : moveFocus(1);
+    } else if (dy < -60) {
+      const id = focusedId();
+      if (id != null) copyImage(id);
+    }
+  }, { passive: true });
+}
+
 const keys = {};
 keys[' '] = () => reroll();
 keys['j'] = () => moveFocus(1);
@@ -395,6 +515,7 @@ keys['ArrowLeft'] = () => moveFocus(-1);
 keys['ArrowDown'] = () => moveFocus(getColCount());
 keys['ArrowUp'] = () => moveFocus(-getColCount());
 keys['c'] = () => { const id = focusedId(); if (id != null) copyImage(id); };
+keys['d'] = () => { const id = focusedId(); if (id != null) sendToDiscord(id); };
 keys['f'] = () => { const id = focusedId(); if (id != null) toggleFav(id); };
 keys['Enter'] = () => { const id = focusedId(); if (id != null) openModal(id); };
 keys['Escape'] = () => { closeModal(); closeWheel(); };
@@ -473,7 +594,7 @@ async function precacheAll() {
   if (!sw) { showToast('SW not active, reload page'); return; }
   const urls = State.ids.map(id => imgUrl(id));
   sw.postMessage({ type: 'precache', urls });
-  showToast(`pre-caching ${urls.length} images…`, 3000);
+  showToast(`pre-caching ${urls.length} images...`, 3000);
 }
 
 navigator.serviceWorker?.addEventListener('message', e => {
@@ -502,22 +623,45 @@ window.addEventListener('hashchange', () => {
 });
 
 async function main() {
+  initTheme();
   await loadMeta();
   if (!loadFromHash()) State.current = pickRandom(getCount());
   renderGrid();
   renderFavorites();
   updateMultiUI();
+
   $('#reroll').onclick = reroll;
   $('#share').onclick = makePermalink;
+  $('#theme-toggle').onclick = cycleTheme;
   $('#multi-toggle').onclick = toggleMultiSelect;
+  $('#bulk-tag').onclick = bulkTagSelected;
   $('#download-zip').onclick = downloadZip;
+  $('#discord-send').onclick = () => {
+    if (State.selected.size > 0) {
+      [...State.selected].forEach(id => sendToDiscord(id));
+    }
+  };
+  $('#export-favs').onclick = exportFavZip;
+  $('#fav-sort-toggle').onclick = () => {
+    State.favSortByUse = !State.favSortByUse;
+    renderFavorites();
+  };
   $('#precache').onclick = precacheAll;
   $('#search').addEventListener('keydown', e => {
     if (e.key === 'Enter') { e.target.blur(); applySearch(e.target.value); }
   });
   $('#count').addEventListener('change', reroll);
+
+  const webhookInput = $('#webhook-url');
+  webhookInput.value = load('discordWebhook', '');
+  webhookInput.addEventListener('change', () => {
+    save('discordWebhook', webhookInput.value.trim());
+    showToast('webhook saved');
+  });
+
   modal.addEventListener('click', e => { if (e.target === modal) closeModal(); });
   wheel.addEventListener('click', e => { if (e.target === wheel) closeWheel(); });
+  initSwipe();
   registerSW();
 }
 

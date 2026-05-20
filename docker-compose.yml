@@ -8,3 +8,9 @@ services:
     volumes:
       - ./site/img:/usr/share/nginx/html/img:ro
       - ./site/meta.json:/usr/share/nginx/html/meta.json:ro
+    healthcheck:
+      test: ["CMD", "wget", "-qO-", "http://localhost/healthz"]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+      start_period: 10s
