@@ -102,7 +102,7 @@ function setTheme(t) {
 async function loadMeta() {
   statusEl.innerHTML = 'loading';
   try {
-    const r = await fetch(META_URL, { cache: 'no-store' });
+    const r = await fetch(META_URL, { cache: 'no-cache' });
     if (!r.ok) throw new Error(`HTTP ${r.status}`);
     const total = parseInt((await r.text()).trim(), 10);
     if (!Number.isFinite(total) || total < 1) throw new Error('bad meta');
@@ -702,6 +702,9 @@ async function precacheAll() {
   const sw = navigator.serviceWorker?.controller;
   if (!sw) { showToast('SW not active, reload page'); return; }
   const urls = State.ids.map(id => imgUrl(id));
+  const estMB = Math.round(urls.length * 30 / 1024);
+  const go = await askPrompt(`Cache all ${urls.length.toLocaleString()} images (~${estMB} MB). Press OK to start.`);
+  if (go === null) return;
   sw.postMessage({ type: 'precache', urls });
   showToast(`pre-caching ${urls.length} images...`, 3000);
 }
