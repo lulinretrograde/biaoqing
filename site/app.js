@@ -265,7 +265,7 @@ async function bulkTagSelected() {
 
 async function exportFavZip() {
   if (State.favorites.length === 0) { showToast('no favorites'); return; }
-  if (typeof JSZip === 'undefined') { showToast('zip lib not loaded'); return; }
+  await ensureJSZip();
   showToast(`packaging ${State.favorites.length} favorites...`, 4000);
   const zip = new JSZip();
   let ok = 0;
@@ -400,6 +400,16 @@ function renderFavorites() {
   sorted.forEach(id => renderCard(id, favGrid, { draggable: !State.favSortByUse }));
   const btn = $('#fav-sort-toggle');
   if (btn) btn.classList.toggle('on', State.favSortByUse);
+}
+
+async function ensureJSZip() {
+  if (typeof JSZip !== 'undefined') return;
+  await new Promise((res, rej) => {
+    const s = document.createElement('script');
+    s.src = 'vendor/jszip.min.js';
+    s.onload = res; s.onerror = rej;
+    document.head.appendChild(s);
+  });
 }
 
 let _ocrWorker = null;
@@ -555,7 +565,7 @@ function loadFromHash() {
 
 async function downloadZip() {
   if (State.selected.size === 0) { showToast('select images first'); return; }
-  if (typeof JSZip === 'undefined') { showToast('zip lib not loaded'); return; }
+  await ensureJSZip();
   showToast(`packaging ${State.selected.size} files...`, 4000);
   const zip = new JSZip();
   let ok = 0;
